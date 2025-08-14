@@ -7,7 +7,9 @@ TAP,bidar,0.7
 TAP,ali,0.3
 TAP,hassan,0.4
 TAP,hamid,0.9
-Web,bidar,0.2
-Web,ali,0.4
-Web,hassan,0.2
-Web,hamid,0.1
+web,bidar,0.1
+web,ali,0.2
+web,hassan,0.1
+web,hamid,0.1
+p3,ali2,0.5
+p2,ali2,0.5
