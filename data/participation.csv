@@ -5,9 +5,11 @@ Kinder,,hassan,0.4
 Kinder,,hamid,0
 TAP,,bidar,0.3
 TAP,0,bidar,0.4
-TAP,,ali,0.3
-TAP,,hassan,0.4
-TAP,,hamid,0.9
+TAP,0,ali,0.3
+TAP,1,hassan,0.1
+TAP,2,hassan,0.3
+TAP,1,hamid,0.4
+TAP,2,hamid,0.5
 web,,bidar,0.1
 web,,ali,0.2
 web,,hassan,0.1

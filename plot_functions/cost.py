@@ -1,3 +1,4 @@
+from enum import Enum, auto
 import matplotlib.pyplot as plt
 from datetime import datetime
 import pandas as pd
@@ -89,11 +90,16 @@ def plot_staff_cumsum_cost(
     return ax, values, timestamps
 
 
+class WP_Enum(Enum):
+    FILTER_ALL = auto()
+
+
 def calculate_staffs_proportional_cost(
     participation_df: pd.DataFrame,
     cost_df: pd.DataFrame,
     budget_df: pd.DataFrame,
     project_name: str,
+    work_package_id: int | None | WP_Enum = WP_Enum.FILTER_ALL,
     start: datetime | None = None,
     end: datetime | None = None,
 ):
@@ -122,12 +128,12 @@ def calculate_staffs_proportional_cost(
         participation percentage in the project. If a staff member is not found in
         the participation records for the project, their monthly rate is set to 0.
     """
-    project = budget_df[budget_df["name"] == project_name].iloc[0]
+    project = budget_df[budget_df["project"] == project_name]
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        start = project["start"] if start is None else np.datetime64(start)
-        end = project["end"] if end is None else np.datetime64(end)
+        start = project["start"].min() if start is None else np.datetime64(start)
+        end = project["end"].max() if end is None else np.datetime64(end)
 
     proportional_cost = cost_df[
         (cost_df["start"] < end) & (cost_df["end"] > start)
@@ -142,6 +148,16 @@ def calculate_staffs_proportional_cost(
             (participation_df["staff"] == record["staff"])
             & (participation_df["project"] == project_name)
         ]
+        if work_package_id != WP_Enum.FILTER_ALL:
+            if work_package_id is None:
+                participation_record = participation_record[
+                    participation_df["work-package"].isna()
+                ]
+            else:
+                participation_record = participation_record[
+                    participation_record["work-package"] == work_package_id
+                ]
+
         if not participation_record.empty:
             rate = participation_record.iloc[0]["participation"]
             proportional_cost.at[idx, "monthly-rate"] = record["monthly-rate"] * rate
@@ -165,7 +181,7 @@ def plot_staff_proportional_cost(
     legend: bool = True,
 ):
     proportional_cost = calculate_staffs_proportional_cost(
-        participation_df, cost_df, budget_df, project_name, start, end
+        participation_df, cost_df, budget_df, project_name, start=start, end=end
     )
     return plot_staff_cumsum_cost(
         proportional_cost,
@@ -215,9 +231,9 @@ def calculate_projects_cumsum_cost(
             participation_df,
             cost_df,
             budget_df,
-            record["name"],
-            record["start"],
-            record["end"],
+            record["project"],
+            start=record["start"],
+            end=record["end"],
         )
         values, timestamps = calculate_staff_cumsum_cost(proportional_cost)
 

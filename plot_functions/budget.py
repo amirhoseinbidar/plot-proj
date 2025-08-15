@@ -102,6 +102,7 @@ def get_budget_stack_data(
     df: pd.DataFrame,
     priority_type: Literal["budget", "start", "duration"],
     priority_ascending: bool,
+    label_column="project",
 ):
     """Calculate stacked budget data for visualization.
 
@@ -117,30 +118,23 @@ def get_budget_stack_data(
             - labels: list of project names in their priority order
     """
     edges = sorted(set(df["start"]).union(set(df["end"])))
-    values = {name: [0] * len(edges) for name in df["name"]}
+    values = {name: [0] * len(edges) for name in df[label_column]}
 
     for i, edge in enumerate(edges):
         active_records = df[(df["start"] <= edge) & (df["end"] > edge)]
         for _, record in active_records.iterrows():
-            values[record["name"]][i] = record["budget"]
+            values[record[label_column]][i] = record["budget"]
 
     x = np.array(edges, dtype="datetime64")
     priority = df.sort_values(by=priority_type, ascending=priority_ascending)[
-        "name"
+        label_column
     ].tolist()
     y_priority = np.vstack([values[name] for name in priority])
     return x, y_priority, priority
 
 
-def plot_budget(
-    df: pd.DataFrame,
-    priority_type: Literal["budget", "start", "duration"],
-    priority_ascending: bool,
-    ax: plt.Axes = None,
-    plot_today: bool = True,
-):
+def plot_budget(ax, plot_today, x, y, labels):
     now = datetime.now()
-    x, y, labels = get_budget_stack_data(df, priority_type, priority_ascending)
 
     if not ax:
         _, ax = plt.subplots(figsize=(8, 4))
@@ -173,7 +167,38 @@ def plot_budget(
     return ax, polys
 
 
-def plot_budget_cumsum(df: pd.DataFrame, ax: plt.Axes = None, plot_today: bool = True):
+def plot_projects_budget(
+    projects_df: pd.DataFrame,
+    priority_type: Literal["budget", "start", "duration"],
+    priority_ascending: bool,
+    ax: plt.Axes = None,
+    plot_today: bool = True,
+):
+    x, y, labels = get_budget_stack_data(
+        projects_df, priority_type, priority_ascending, "project"
+    )
+    ax, polys = plot_budget(ax, plot_today, x, y, labels)
+    return ax, polys
+
+
+def plot_work_package_budget(
+    work_packages_df: pd.DataFrame,
+    priority_type: Literal["budget", "start", "duration"],
+    priority_ascending: bool,
+    ax: plt.Axes = None,
+    plot_today: bool = True,
+):
+    x, y, labels = get_budget_stack_data(
+        work_packages_df, priority_type, priority_ascending, "id"
+    )
+    labels = ["WP-" + str(label) for label in labels]
+    ax, polys = plot_budget(ax, plot_today, x, y, labels)
+    return ax, polys
+
+
+def plot_projects_budget_cumsum(
+    df: pd.DataFrame, ax: plt.Axes = None, plot_today: bool = True
+):
     start_budget_map = df.groupby("start")["budget"].sum().to_dict()
     end_budget_map = df.groupby("end")["budget"].sum().to_dict()
     edges = sorted(set(df["start"]).union(set(df["end"])))
