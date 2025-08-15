@@ -1,0 +1,6 @@
+project,id,budget,package_name,start_date,end_date,status
+web,0,100,Initial Planning,2023-01-01,2023-02-15,Completed 
+web,1,200,Design Phase,2023-02-16,2023-04-30,In Progress
+TAP,0,100,Development Sprint 1,2023-03-01,2023-04-15,In Progress
+TAP,1,300,Quality Assurance,2023-04-16,2023-05-31,Pending
+TAP,2,200,Documentation,2023-05-01,2023-06-15,Not Started

@@ -2,7 +2,7 @@ from typing import Literal
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import pandas as pd
-from matplotlib.lines import Line2D
+import matplotlib.patches as mpatches
 
 from plot_functions.budget import get_block_intervals, plot_budget
 from plot_functions.cost import (
@@ -28,7 +28,7 @@ def plot_consumed_budget(
         for from_, to_ in intervals:
             times = bottom[from_:to_, 0]
             initial_cost = bottom[from_:to_, 1][0]
-            
+
             start, end = (
                 mdates.num2date(times.min()),
                 mdates.num2date(times.max()),
@@ -52,14 +52,13 @@ def plot_consumed_budget(
             values.append(initial_cost)
             timestamps.append(start)
 
-
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
                 ax.fill(timestamps, values, color="black")
 
-    lbls = plt.gca().get_legend_handles_labels()
+    labels = plt.gca().get_legend_handles_labels()
     ax.legend(
-        handles=[Line2D([0], [0], color="black")] + lbls[0],
-        labels=["Proportional cost"] + lbls[1],
+        handles=[mpatches.Patch(color="black")] + labels[0],
+        labels=["Proportional cost"] + labels[1],
     )
     return ax

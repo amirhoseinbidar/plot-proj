@@ -5,7 +5,26 @@ import numpy as np
 import warnings
 
 
-def calculate_staff_cumsum_cost(df: pd.DataFrame, initial_cost: int = 0):
+def calculate_staff_cumsum_cost(
+    df: pd.DataFrame, initial_cost: int = 0
+) -> tuple[list, list]:
+    """Calculates cumulative staff cost over time based on start and end dates and monthly rates.
+
+    This function processes a DataFrame containing staff cost information and calculates the
+    cumulative cost over time, taking into account varying monthly rates and time periods.
+
+    Args:
+        df (pd.DataFrame): DataFrame containing columns:
+            - start: Start date of the cost period
+            - end: End date of the cost period
+            - monthly-rate: Monthly cost rate
+        initial_cost (int, optional): Initial cost value to start calculations from. Defaults to 0.
+
+    Returns:
+        tuple: A tuple containing two lists:
+            - values (list): Cumulative cost values at each timestamp
+            - timestamps (list): Corresponding timestamps for each cost value
+    """
     df["start"] = pd.to_datetime(df["start"])
     df["end"] = pd.to_datetime(df["end"])
     df = df.sort_values(by=["start"])
@@ -78,6 +97,31 @@ def calculate_staffs_proportional_cost(
     start: datetime | None = None,
     end: datetime | None = None,
 ):
+    """Calculate the proportional cost of staffs for a specific project within a time period.
+
+    This function calculates the cost of staff members assigned to a project, taking into account
+    their participation rate and the time period of involvement. The cost is adjusted proportionally
+    based on the staff's participation percentage in the project.
+
+    Args:
+        participation_df (pd.DataFrame): DataFrame containing staff participation data.
+        cost_df (pd.DataFrame): DataFrame containing staff cost data.
+        budget_df (pd.DataFrame): DataFrame containing project budget data.
+        project_name (str): Name of the project to calculate costs for.
+        start (datetime | None, optional): Start date for cost calculation. If None,
+            uses project start date. Defaults to None.
+        end (datetime | None, optional): End date for cost calculation. If None,
+            uses project end date. Defaults to None.
+
+    Returns:
+        pd.DataFrame: DataFrame containing proportional cost data for each staff member,
+            with adjusted monthly rates based on their participation in the project.
+
+    Note:
+        The function adjusts the monthly rate of each staff member based on their
+        participation percentage in the project. If a staff member is not found in
+        the participation records for the project, their monthly rate is set to 0.
+    """
     project = budget_df[budget_df["name"] == project_name].iloc[0]
 
     with warnings.catch_warnings():
@@ -96,7 +140,7 @@ def calculate_staffs_proportional_cost(
     for idx, record in proportional_cost.iterrows():
         participation_record = participation_df[
             (participation_df["staff"] == record["staff"])
-            & (participation_df["name"] == project_name)
+            & (participation_df["project"] == project_name)
         ]
         if not participation_record.empty:
             rate = participation_record.iloc[0]["participation"]
@@ -136,7 +180,33 @@ def plot_staff_proportional_cost(
 
 def calculate_projects_cumsum_cost(
     participation_df: pd.DataFrame, cost_df: pd.DataFrame, budget_df: pd.DataFrame
-):
+) -> tuple[list[pd.Series], list]:
+    """
+    Calculate cumulative project costs over a shared time grid for multiple projects.
+
+    The process involves:
+        1. Calculating proportional staff costs for each project over its budget period.
+        2. Computing cumulative sums of costs over time.
+        3. Building a unified time grid across all projects. Time alignment ensures that
+           plots of multiple projects will be synchronized.
+        4. Forward-filling missing values between known data points.
+        5. Inserting drop points at the end of each project to ensure immediate cost fall-off in plots.
+
+    Args:
+        participation_df (pd.DataFrame): DataFrame containing staff participation information,
+            such as which staff members participated in which projects and during what periods.
+        cost_df (pd.DataFrame): DataFrame containing cost information for each staff member.
+        budget_df (pd.DataFrame): DataFrame containing project budget information, including
+            project name, start date, and end date.
+
+    Returns:
+        tuple:
+            - list[pd.Series]: A list of cumulative cost Series for each project,
+              aligned to the same time grid and adjusted for plotting.
+            - list: A sorted list of all timestamps in the time grid, including
+              project end timestamps where drops occur.
+    """
+
     time_grid = set()
     series_list = []
     last_drop_timestamps = []
@@ -159,15 +229,17 @@ def calculate_projects_cumsum_cost(
 
     time_grid = sorted(time_grid)
 
-    # I reindex each series in order to make sure their all series have same index.
-    # Then, I fill None values between values with forward fill method.
     for idx, s in enumerate(series_list):
+        # each series is reindexed to make sure that all series have same index.
         s = s.reindex(time_grid)
         first_valid = s.first_valid_index()
         last_valid = s.last_valid_index()
+
+        # None values between two existing value are filled with forward fill method.
         s.loc[first_valid:last_valid] = s.loc[first_valid:last_valid].ffill()
         s = s.fillna(0).sort_index()
 
+        # zero values are added at the end of project to make sure that plot will fall immediately.
         for drop in last_drop_timestamps:
             i = s.index.get_loc(drop)
             if i < len(s) - 1:
@@ -183,3 +255,37 @@ def calculate_projects_cumsum_cost(
         series_list[idx] = s.sort_index()
 
     return series_list, sorted(time_grid + last_drop_timestamps)
+
+
+def plot_projects_total_cumsum_cost(
+    participation_df: pd.DataFrame,
+    cost_df: pd.DataFrame,
+    budget_df: pd.DataFrame,
+    ax: plt.Axes = None,
+    **kwargs,
+):
+    series, date_grid = calculate_projects_cumsum_cost(
+        participation_df, cost_df, budget_df
+    )
+    if not ax:
+        _, ax = plt.subplots()
+
+    ax.fill(date_grid, sum(series), **kwargs)
+    return ax, series, date_grid
+
+
+def plot_projects_stacked_cumsum_cost(
+    participation_df: pd.DataFrame,
+    cost_df: pd.DataFrame,
+    budget_df: pd.DataFrame,
+    ax: plt.Axes = None,
+    **kwargs,
+):
+    series, date_grid = calculate_projects_cumsum_cost(
+        participation_df, cost_df, budget_df
+    )
+    if not ax:
+        _, ax = plt.subplots()
+
+    ax.stackplot(date_grid, *series, **kwargs)
+    return ax, series, date_grid

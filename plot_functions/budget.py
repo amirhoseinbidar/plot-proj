@@ -7,7 +7,33 @@ import matplotlib.dates as mdates
 import pandas as pd
 
 
-def get_block_intervals(poly: PolyCollection, check_overlap=True):
+def get_block_intervals(
+    poly: PolyCollection, check_overlap: bool = True
+) -> tuple[list[tuple[int, int]], np.ndarray, np.ndarray]:
+    """Get continuous intervals from polygon collection boundaries.
+
+    This function analyzes a polygon collection to identify continuous intervals where the
+    boundaries form connected blocks. It splits the polygon vertices into top and bottom
+    boundaries and finds intervals where the boundaries maintain continuity.
+
+    Args:
+        poly (PolyCollection): The polygon collection to analyze.
+        check_overlap (bool, optional): Whether to check for overlapping between adjacent blocks.
+            Defaults to True.
+
+    Returns:
+        tuple: A tuple containing:
+            - list of tuples: Each tuple contains (start, end) indices of continuous intervals
+            - ndarray: Top boundary vertices
+            - ndarray: Bottom boundary vertices
+
+    Notes:
+        The function assumes the polygon collection contains a single path.
+        Intervals are determined based on:
+        1. Changes in data between adjacent points
+        2. Non-zero height bars
+        3. Lack of overlap between adjacent bars (if check_overlap=True)
+    """
     path = poly.get_paths()[0]  # usually only one path per layer
     verts = path.vertices
     n = len(verts) // 2
@@ -48,7 +74,18 @@ def get_block_intervals(poly: PolyCollection, check_overlap=True):
     return intervals, top, bottom
 
 
-def get_block_centers(poly: PolyCollection):
+def get_block_centers(poly: PolyCollection) -> list:
+    """
+    Calculate the center coordinates of each block in a polygon collection.
+
+    Args:
+        poly (PolyCollection): A matplotlib PolyCollection object representing multiple polygons.
+
+    Returns:
+        list: A list of tuples containing (x, y) coordinates for the center of each block.
+              Each center is calculated by averaging x coordinates of bottom vertices and
+              taking the midpoint between top and bottom y coordinates.
+    """
     intervals, top, bottom = get_block_intervals(poly)
     centers = []
     for from_, to_ in intervals:
@@ -61,14 +98,24 @@ def get_block_centers(poly: PolyCollection):
     return centers
 
 
-def plot_budget(
+def get_budget_stack_data(
     df: pd.DataFrame,
     priority_type: Literal["budget", "start", "duration"],
     priority_ascending: bool,
-    ax: plt.Axes = None,
-    plot_today: bool = True,
 ):
-    now = datetime.now()
+    """Calculate stacked budget data for visualization.
+
+    Args:
+        df: DataFrame containing project data
+        priority_type: Column name to use for prioritizing/ordering the stacks.
+        priority_ascending: If True, sort priority in ascending order.
+
+    Returns:
+        tuple: A tuple containing:
+            - x: numpy array of datetime64 values representing time points
+            - y: numpy array of stacked budget values, shaped (n_projects, n_timepoints)
+            - labels: list of project names in their priority order
+    """
     edges = sorted(set(df["start"]).union(set(df["end"])))
     values = {name: [0] * len(edges) for name in df["name"]}
 
@@ -82,12 +129,24 @@ def plot_budget(
         "name"
     ].tolist()
     y_priority = np.vstack([values[name] for name in priority])
+    return x, y_priority, priority
+
+
+def plot_budget(
+    df: pd.DataFrame,
+    priority_type: Literal["budget", "start", "duration"],
+    priority_ascending: bool,
+    ax: plt.Axes = None,
+    plot_today: bool = True,
+):
+    now = datetime.now()
+    x, y, labels = get_budget_stack_data(df, priority_type, priority_ascending)
 
     if not ax:
         _, ax = plt.subplots(figsize=(8, 4))
 
     # plot bars
-    polys = ax.stackplot(x, y_priority, labels=priority, baseline="zero", step="post")
+    polys = ax.stackplot(x, y, labels=labels, baseline="zero", step="post")
 
     # plot today
     if plot_today:
