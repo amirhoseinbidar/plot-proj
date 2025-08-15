@@ -1,6 +1,6 @@
-project,id,budget,package_name,start,end,status
-web,0,100,Initial Planning,2023-01-01,2023-02-15,Completed 
-web,1,200,Design Phase,2023-02-16,2023-04-30,In Progress
-TAP,0,3000,Development Sprint 1,2024-03-01,2024-08-15,In Progress
-TAP,1,5000,Quality Assurance,2024-04-16,2024-10-31,Pending
-TAP,2,6000,Documentation,2024-05-01,2025-06-15,Not Started
+project,id,budget,package_name,start,end,status,currency
+web,0,100,Initial Planning,2023-01-01,2023-02-15,Completed,EUR
+web,1,200,Design Phase,2023-02-16,2023-04-30,In Progress,SEK
+TAP,0,3000,Development Sprint 1,2024-03-01,2024-08-15,In Progress,USD
+TAP,1,5000,Quality Assurance,2024-04-16,2024-10-31,Pending,USD
+TAP,2,6000,Documentation,2024-05-01,2025-06-15,Not Started,USD
