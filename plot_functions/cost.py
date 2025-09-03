@@ -252,7 +252,7 @@ def calculate_projects_cumsum_cost(
         # each series is reindexed to make sure that all series have same index.
         s_idx = s.index
         s = s.reindex(time_grid)
-        
+
         # empty records between original values have to be filled using linear regression method
         for from_, to_ in zip(s_idx, s_idx[1:]):
             s.loc[from_:to_] = s.loc[from_:to_].interpolate(method="linear")
@@ -312,9 +312,11 @@ def plot_projects_stacked_cumsum_cost(
     priority = budget_df.sort_values(by=priority_type, ascending=priority_ascending)[
         "project"
     ].tolist()
+
     # swap rows to fit order
     for p_idx, p in enumerate(priority):
-        series[p_idx], series[labels.index(p)] = series[p_idx], series[labels.index(p)]
+        series[labels.index(p)], series[p_idx] = series[p_idx], series[labels.index(p)]
+        labels[labels.index(p)], labels[p_idx] = labels[p_idx], labels[labels.index(p)]
 
     ax.stackplot(date_grid, labels=priority, *series, **kwargs)
     return ax, series, date_grid
