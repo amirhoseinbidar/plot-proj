@@ -1,4 +1,5 @@
 from enum import Enum, auto
+from typing import Literal
 import matplotlib.pyplot as plt
 from datetime import datetime
 import pandas as pd
@@ -224,6 +225,7 @@ def calculate_projects_cumsum_cost(
     """
 
     time_grid = set()
+    labels = []
     series_list = []
     last_drop_timestamps = []
     for idx, record in budget_df.iterrows():
@@ -242,17 +244,19 @@ def calculate_projects_cumsum_cost(
 
         time_grid = time_grid.union(set(timestamps))
         series_list.append(pd.Series(values, timestamps))
+        labels.append(record["project"])
 
     time_grid = sorted(time_grid)
 
     for idx, s in enumerate(series_list):
         # each series is reindexed to make sure that all series have same index.
+        s_idx = s.index
         s = s.reindex(time_grid)
-        first_valid = s.first_valid_index()
-        last_valid = s.last_valid_index()
+        
+        # empty records between original values have to be filled using linear regression method
+        for from_, to_ in zip(s_idx, s_idx[1:]):
+            s.loc[from_:to_] = s.loc[from_:to_].interpolate(method="linear")
 
-        # None values between two existing value are filled with forward fill method.
-        s.loc[first_valid:last_valid] = s.loc[first_valid:last_valid].ffill()
         s = s.fillna(0).sort_index()
 
         # zero values are added at the end of project to make sure that plot will fall immediately.
@@ -270,7 +274,7 @@ def calculate_projects_cumsum_cost(
 
         series_list[idx] = s.sort_index()
 
-    return series_list, sorted(time_grid + last_drop_timestamps)
+    return series_list, sorted(time_grid + last_drop_timestamps), labels
 
 
 def plot_projects_total_cumsum_cost(
@@ -280,7 +284,7 @@ def plot_projects_total_cumsum_cost(
     ax: plt.Axes = None,
     **kwargs,
 ):
-    series, date_grid = calculate_projects_cumsum_cost(
+    series, date_grid, _ = calculate_projects_cumsum_cost(
         participation_df, cost_df, budget_df
     )
     if not ax:
@@ -294,14 +298,23 @@ def plot_projects_stacked_cumsum_cost(
     participation_df: pd.DataFrame,
     cost_df: pd.DataFrame,
     budget_df: pd.DataFrame,
+    priority_type: Literal["budget", "start", "duration"],
+    priority_ascending: bool,
     ax: plt.Axes = None,
     **kwargs,
 ):
-    series, date_grid = calculate_projects_cumsum_cost(
+    series, date_grid, labels = calculate_projects_cumsum_cost(
         participation_df, cost_df, budget_df
     )
     if not ax:
         _, ax = plt.subplots()
 
-    ax.stackplot(date_grid, *series, **kwargs)
+    priority = budget_df.sort_values(by=priority_type, ascending=priority_ascending)[
+        "project"
+    ].tolist()
+    # swap rows to fit order
+    for p_idx, p in enumerate(priority):
+        series[p_idx], series[labels.index(p)] = series[p_idx], series[labels.index(p)]
+
+    ax.stackplot(date_grid, labels=priority, *series, **kwargs)
     return ax, series, date_grid
